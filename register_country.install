@@ -1,0 +1,28 @@
+<?php
+// $Id$
+
+/**
+* Implementation of hook_install().
+*/
+function register_country_install() {
+  watchdog ('register_country', 'register_country module installed');
+  drupal_set_message(t('The Register_Country module was installed. You may want to go to the <a href="!settings">settings page now</a>.', array('!settings' => url('admin/build/register_country'))));
+
+}
+
+/**
+* Implementation of hook_uninstall().
+*/
+function register_country_uninstall() {
+
+  variable_del('register_country_settings');
+// clear the cache tables (see http://drupal.org/node/64279#comment-211282)
+  cache_clear_all('*', 'cache', TRUE);
+  cache_clear_all('*', 'cache_filter', TRUE);
+  cache_clear_all('*', 'cache_menu', TRUE);
+  cache_clear_all('*', 'cache_page', TRUE);
+
+  watchdog ('register_country', 'register_country module removed');
+
+}
+?>

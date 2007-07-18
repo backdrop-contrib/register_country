@@ -1,0 +1,33 @@
+<h2>Introduction</h2>
+<p>Are you creating a country portal or a site dedicated to a specific country?</p>
+<p>The Register Country module is designed to intercept new registrations and check if the IP address being used is registered to a country that the site administrator has chosen. In this way, you may limit sign ups to your site to specific countries.</p>
+<h2>Installation</h2>
+<p>Normal module installation applies, however, there are some preparatory steps.</p>
+<h3>Before Enabling This Module</h3>
+<ul>
+<li>You must install and enable the <a href="http://drupal.org/node/45806">Ip2cc module</a> first.</li>
+<p><b>Note</b>: Ip2cc installs a VERY large database table (30+ MB); it will take a little while. Wait for it.</p>
+<li>Follow the instructions for the Error Page below.</li>
+<li>Now you can enable the Register Country module.</li>
+<p><b>Note</b>: As a convenience, the messages include a link to take you straight to the settings page.</p>
+</ul>
+<h3>Settings</h3>
+<ul>
+<li>Enter the node number for the error page.</li>
+<li>Select as many countries as you need to which to limit your registration.</li>
+<li>Click the "Update" button.</li>
+</ul>
+<p>Yout site should now reject registration attempts from any countries not in your list.</p>
+<h3>Error Page</h3>
+<p>I've included a sample error page for registration denial. It should require minimal customization.</p>
+<ul>
+<li>Use "Create content" to create a page.</li>
+<li>Set the title to something like "Registration Denied".</li>
+<li>Copy and paste the sample page into the Body.</li>
+<li>Make any changes you would like (especially to the country name to which you are restricting access).</li>
+<li>Make sure comments are disabled and the page is "published" and not "promote to front page."</li>
+<li>If you have the path module enabled, you might want to set a URL alias.</li>
+<li>"Submit" the page and take note of the node number; you'll need it for the settings page.</li>
+</ul>
+<h2>Problems or Questions?</h2>
+<p>Please post support or feature requests, or bug reports on the <a href="http://drupal.org/project/register_country">project page</a>, not in the general forums.</p>
