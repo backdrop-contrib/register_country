@@ -148,4 +148,5 @@ function register_country_user($op, &$edit, &$account, $category = NULL){
       break;  /* end of register */
 
   } /* end of switch */
+  return array();
 }
