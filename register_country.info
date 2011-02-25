@@ -1,4 +1,3 @@
-; $Id$
 name = Register_Country
 description = "Enables limiting registration to specific countries."
 dependencies = ip2cc
