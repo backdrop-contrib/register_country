@@ -1,0 +1,10 @@
+{
+    "_config_name": "register_country.settings",
+	  "no_match": "block",
+	  "error_page": "",
+	  "user_denied_message": "Sorry, your IP address was not found in our country look up table.",
+	  "exclude_include": "include",
+	  "country_list": [
+        "US"
+    ]
+}

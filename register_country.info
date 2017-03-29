@@ -1,4 +1,6 @@
-name = Register_Country
-description = "Enables limiting registration to specific countries."
-dependencies = ip2cc
+name = Register Country
+description = Enables limiting registration to specific countries.
+backdrop = 1.x
+type = module
 
+dependencies[] = ip2country

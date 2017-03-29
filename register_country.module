@@ -2,150 +2,187 @@
 
 /**
  * @file
- * Allows the admin to select which countries (based on IP address) can register for this site.
+ * Allows admins to select which countries (based on IP address) can register for this site.
  */
+
 
 /**
- * Implementation of hook_help().
- *  The first case adds a little help text.
- *  The second case adds some submission guidelines on the create content page.
+ * Implements hook_permission().
  */
-function register_country_help($section) {
-  switch ($section) {
-
-    case 'admin/help#register_country':
-      $output = '<p>'. t('The site administrator can limit registration at this site to specific countries. The country is determined by the IP address of the user. There is no specific access permission for this module; it uses \'administer site configuration\'.') .'</p>';
-     return $output;
-  }
+function register_country_permission() {
+  return array(
+    'administer country restrictions' => array(
+      'title'       => t('Administer country restrictions'),
+      'description' => t('Configure register_country settings.'),
+    ),
+  );
 }
 
 /**
  * Implementation of hook_menu().
- *  Add a menu item to the Administer >> Site building menu for displaying the register_country.
  */
-function register_country_menu($may_cache) {
+function register_country_menu() {
   $items = array();
 
-  if ($may_cache) {
-    $items[] = array(
-      'path' => 'admin/settings/register_country',
-      'title' => t('Register country settings'),
-      'description' => t('Limit registration to specific countries based on IP address.'),
-      'callback' => 'drupal_get_form',
-      'callback arguments' => array('register_country_settings_form'),
-      'access' => user_access('administer site configuration'),
-    );
-  }
+  $items['admin/config/people/register_country'] = array(
+    'title' => 'Register country settings',
+    'description' => 'Limit registration to specific countries based on IP address.',
+    'page callback' => 'backdrop_get_form',
+    'page arguments' => array('register_country_settings_form'),
+    'access arguments' => array('administer country restrictions'),
+    'type' => MENU_NORMAL_ITEM,
+  );
   return $items;
 }
 
 /**
- * Define a form to control the settings.
+ * Menu callback. Defines a form to control settings.
  */
 function register_country_settings_form() {
- // Pull in our form's style sheet.
-  drupal_add_css(drupal_get_path('module', 'register_country') .'/register_country.css');
+  $config = config('register_country.settings');
 
-  $_default_settings = array(
-                             // Try to use the site's "access denied" page,if it exists, for a default.
-                             'error_page' => variable_get('site_403', 'node'),
-                             'countries' => array('US'),
-                         );
-  $register_country_settings = variable_get('register_country_settings', $_default_settings);
+  $form['#tree'] = TRUE;
+
+  $form['user_denied_message'] = array(
+    '#type' => 'textarea',
+    '#rows' => 3,
+    '#title' => t('Blocked visitor message'),
+    '#description' => t("Message to display when a visitor is denied access by this module."),
+    '#default_value' => $config->get('user_denied_message'),
+  );
 
   $form['error_page'] = array(
     '#type' => 'textfield',
     '#title' => t('Registration denied page'),
-//    '#suffix' => '</div>',
     '#description' => t("This the address of the page to which the user will be redirected if they are not within one of the selected countries."),
-    '#weight' => -5,
-    '#default_value' => $register_country_settings['error_page'],
-    );
-
-// Countries Fieldset 
-  $form['countries'] = array(
-    '#type' => 'fieldset', 
-    '#title' => t('Select countries'), 
-    '#weight' => -1,
-    '#collapsible' => FALSE,
-    '#collapsed' => FALSE,
-    '#prefix' => '<div class="register_country_countries_section">',
-    '#suffix' => '',
+    '#default_value' => $config->get('error_page'),
   );
 
-// TODO: fix formatting problem when country name splits to a new line.
-    // Do a loop to get all the countries we know about.
-  $results = db_query("SELECT country_code2 AS code, country_name AS name FROM {iso3166}");
-  while ($cntry = db_fetch_object($results)) {
-    $form['countries']['country-'. $cntry->code] = array('#type' => 'checkbox',
-        '#title' => t($cntry->name),
-        '#default_value' => in_array($cntry->code, $register_country_settings['countries']),
-        '#prefix' => "\n".'<div class="register_country_country">',
-        '#suffix' => '</div>',
-      );
-  } /* end while */	
+  $form['no_match'] = array(
+    '#type' => 'radios',
+    '#title' => t('Handle unmatched addresses'),
+    '#description' => t("If no country match is found for the visitor's IP address, should we allow or deny registration."),
+    '#options' => array(
+      'allow' => t('Allow'),
+      'block' => t('Block'),
+    ),
+    '#default_value' => $config->get('no_match'),
+  );
 
-  $form['update']['attach'] = array(
+  // Countries Fieldset
+  $form['countries'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Select countries'),
+    '#collapsible' => FALSE,
+    '#collapsed' => FALSE,
+    );
+
+  $form['countries']['exclude_include'] = array(
+    '#type' => 'radios',
+    '#title' => t('Inclusion settings'),
+    '#options' => array(
+      'include' => t('Allow only selected countries'),
+      'exclude' => t('Allow all countries except selected countries'),
+    ),
+    '#default_value' => $config->get('exclude_include'),
+  );
+
+  include_once BACKDROP_ROOT . '/core/includes/locale.inc';
+  $standard_countries = country_get_list();
+  $country_list = $config->get('country_list');
+  $form['countries']['country_list'] = array(
+    '#type' => 'checkboxes',
+    '#options' => $standard_countries,
+    '#title' => t('Country list'),
+    '#default_value' => $config->get('country_list'),
+  );
+
+  $form['actions']['#type'] = 'actions';
+  $form['actions']['submit'] = array(
     '#type' => 'submit',
-    '#value' => t('Update'),
-    '#prefix' => '</div><div class="clear-block"></div>',
-    '#weight' => 3,
+    '#value' => t('Save configuration'),
   );
 
   return $form;
 }
 
 /**
- * Implementation of hook_form_submit().
- *  Save the settings values.
+ * Submit handler for register_country_settings_form().
  */
-function register_country_settings_form_submit($form_id, $form_values) {
-  // We have to loop through all the form values to find the countries that are selected.
-  $countries = array();
-  foreach ($form_values as $key => $value) {
-    if (substr($key, 0, 8) == 'country-') {
-	  // Checkbox values are boolean.
-	  if ($value) { $countries[] = substr($key, 8, 2); } 
-	} /* end country- check */
-  } /* end foreach */
-  $register_country_settings = array(
-                            'error_page' => $form_values['error_page'],
-                            'countries' => $countries,
-                        );	 
-  variable_set('register_country_settings', $register_country_settings);
+function register_country_settings_form_submit($form, &$form_state) {
+  $selected_countries = array_filter($form_state['values']['countries']['country_list']);
 
-  drupal_set_message(t('Configuration has been updated. '), 'notice'); 
+  $config = config('register_country.settings');
+  $config->set('error_page', $form_state['values']['error_page']);
+  $config->set('no_match', $form_state['values']['no_match']);
+  $config->set('user_denied_message', $form_state['values']['user_denied_message']);
+  $config->set('exclude_include', $form_state['values']['countries']['exclude_include']);
+  $config->set('country_list', array_values($selected_countries));
+  $config->save();
+
+  include_once BACKDROP_ROOT . '/core/includes/locale.inc';
+  $standard_countries = country_get_list();
+  $selected_countries_names = array_intersect_key($standard_countries, $selected_countries);
+  $selected_countries_list = implode(', ', $selected_countries_names);
+
+  $message = t('Configuration has been updated.') . '<br />';
+  if ($form_state['values']['countries']['exclude_include'] == 'include') {
+    $message .= t('Visitors from the following countries will be allowed to register') . ':';
+  }
+  else {
+    $message .= t('Visitors from the following countries will NOT be allowed to register') . ':';
+  }
+  $message .= theme('item_list', array('items' => $selected_countries_names));
+  backdrop_set_message($message);
 }
 
 /**
  * Implementation of hook_user().
+ *
  *  Checks the user's IP Address on registration.
- *  If they are from one of the specified countries, allow registration to continue.
- *  If not, then redirect to a designated page.
+ *  If they are not allowed to register then redirect to a designated page.
  */
-function register_country_user($op, &$edit, &$account, $category = NULL){
-  $register_country_settings = variable_get('register_country_settings', array());
-  switch ($op) {
-    case 'register':
-      $addr = $_SERVER['REMOTE_ADDR'];
-      $country = ip2cc_get_country($addr);
+function register_country_form_user_register_form_alter(&$form, &$form_state, $form_id) {
+  $settings = config_get('register_country.settings');
+  $ip = ip_address();
+  $country = ip2country_get_country($ip);
+  $user_denied_message = $settings['user_denied_message'];
+  $blocked = FALSE;
 
-    // If $country is Null, then it wasn't found in the table.
-    // This won't happen with my patch to ip2cc.
-      if ($country->country_code2) {
+  if ($country) {
+    if (!in_array($country, $settings['countries']) && $settings['exclude_include'] == 'include') {
+      $blocked = TRUE;
+    }
+    elseif (in_array($country, $settings['countries']) && $settings['exclude_include'] == 'exclude') {
+      $blocked = TRUE;
+    }
+  }
+  else {
+    if ($settings['no_match'] == 'block') {
+      $blocked = TRUE;
+    }
+    else {
+      // If we allowed a visitor to register with an unmatched IP address, we
+      // log this to allow admins to verify manually.
+      $replacements = array('!ip' => $ip);
+      $message = 'Visitor with unmatched IP address "!ip" was allowed to register.';
+      watchdog('register_country_unmatched_ip', $message, $replacements, WATCHDOG_WARNING);
+    }
+  }
 
-       // See if it's an allowed country code.
-        if (in_array($country->country_code2, $register_country_settings['countries'])) { /* okay */ }
-         // No, go to the error page.
-        else { drupal_goto($register_country_settings['error_page']); }
+  if ($blocked) {
+    backdrop_set_message($user_denied_message);
+    backdrop_goto($settings['error_page']);
+  }
+}
 
-      } /* end if country */
-      else { 
-        drupal_set_message("Your IP address was not found in our country look up table.");
-        drupal_goto($register_country_settings['error_page']);
-      }
-      break;  /* end of register */
-
-  } /* end of switch */
-  return array();
+/**
+ * Implements hook_config_info().
+ */
+function register_country_config_info() {
+  $prefixes['register_country.settings'] = array(
+    'label' => t('Register Country settings'),
+    'group' => t('Configuration'),
+  );
+  return $prefixes;
 }
